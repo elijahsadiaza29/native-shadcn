@@ -11,12 +11,12 @@ const components = [
       "expo-linear-gradient",
       "lucide-react-native",
     ],
-    source: "src/components/ui/chart.tsx",
+    source: "components/ui/chart.tsx",
   },
   {
     name: "sonner",
     dependencies: ["sonner-native", "lucide-react-native"],
-    source: "src/components/ui/sonner.tsx",
+    source: "components/ui/sonner.tsx",
   },
   {
     name: "drawer",
@@ -27,20 +27,20 @@ const components = [
       "@rn-primitives/slot",
       "@rn-primitives/portal",
     ],
-    source: "src/components/ui/drawer.tsx",
+    source: "components/ui/drawer.tsx",
   },
 ];
 
 function buildRegistry() {
-  console.log("🚀 Building components registry...");
+  console.log("Building components registry...");
 
   const registry = {
-    name: "shadcn-native-pro",
+    name: "native-shadcn",
     components: components
       .map((c) => {
         const sourcePath = path.join(process.cwd(), c.source);
         if (!fs.existsSync(sourcePath)) {
-          console.error(`❌ Source file not found: ${c.source}`);
+          console.error(`Source file not found: ${c.source}`);
           return null;
         }
 
@@ -63,7 +63,7 @@ function buildRegistry() {
   const outputPath = path.join(process.cwd(), "registry.json");
   fs.writeFileSync(outputPath, JSON.stringify(registry, null, 2));
 
-  console.log(`✅ Registry generated at ${outputPath}`);
+  console.log(`Registry generated at ${outputPath}`);
 }
 
 buildRegistry();

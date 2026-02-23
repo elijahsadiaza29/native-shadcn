@@ -1,0 +1,22 @@
+{
+  "name": "native-shadcn",
+  "version": "1.0.0",
+  "description": "Shadcn-style components for React Native and Expo.",
+  "main": "index.js",
+  "bin": {
+    "native-shadcn": "./scripts/installer.js"
+  },
+  "scripts": {
+    "build": "node scripts/build-registry.js"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "shadcn",
+    "ui",
+    "charts",
+    "sonner"
+  ],
+  "author": "elijahsadiaza29",
+  "license": "MIT"
+}
