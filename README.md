@@ -1,4 +1,4 @@
-# Shadcn UI "Pro" for React Native & Expo 🚀
+# Native Shadcn UI for React Native & Expo 🚀
 
 A high-fidelity implementation of **Shadcn UI's** most requested "Display" components for the React Native ecosystem. Built with **NativeWind v4**.
 
