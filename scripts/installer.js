@@ -5,7 +5,7 @@ const { execSync } = require("child_process");
 
 const GITHUB_USER = "elijahsadiaza29";
 const GITHUB_REPO = "native-shadcn";
-const REGISTRY_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/registry.json`;
+const REGISTRY_URL = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/registry.json?t=${Date.now()}`;
 
 async function main() {
   const args = process.argv.slice(2);
