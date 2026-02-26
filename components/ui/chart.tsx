@@ -98,8 +98,6 @@ export function ChartContainer({
       };
 
       if (isBarChart) {
-        // Gap scales with bar count (20% of slot, max 6px) so bars stay
-        // visible even with 30+ data points.
         const slotWidth = chartWidth / data.length;
         const gap = Math.min(6, Math.max(Math.floor(slotWidth * 0.2), 1));
         const barWidth = Math.max(Math.floor(slotWidth - gap), 1);
@@ -107,9 +105,17 @@ export function ChartContainer({
         overrides.barWidth = barWidth;
         overrides.spacing = gap;
       } else {
-        // Line/Area charts: total ≈ (n - 1) * spacing
-        const divisor = Math.max(data.length - 1, 1);
-        overrides.spacing = Math.max(chartWidth / divisor, 2);
+        const n = data.length;
+
+        const pointRadius = childProps.dataPointsRadius ?? 0;
+        const safeWidth = Math.max(chartWidth - pointRadius, 0);
+        const spacing = n > 1 ? safeWidth / (n - 0) : 0;
+
+        overrides.width = safeWidth;
+        overrides.spacing = spacing;
+        overrides.initialSpacing = 8;
+        overrides.endSpacing = -8;
+        overrides.adjustToWidth = false;
       }
 
       return React.cloneElement(child as React.ReactElement<any>, overrides);
@@ -138,7 +144,11 @@ export function ChartContainer({
         id={id}
         onLayout={handleLayout}
         style={[
-          { width: "100%", alignItems: isCentered ? "center" : "stretch" },
+          {
+            width: "100%",
+            overflow: "hidden",
+            alignItems: isCentered ? "center" : "stretch",
+          },
           style,
         ]}
       >
@@ -263,13 +273,6 @@ export function getChartColor(key: string, config: ChartConfig): string {
   return config[key]?.color || "#000";
 }
 
-/**
- * Usage:
- * ```tsx
- * const pointerConfig = useChartPointerConfig();
- * <LineChart pointerConfig={pointerConfig} />
- * ```
- */
 export function useChartPointerConfig(overrides?: Record<string, any>) {
   const theme = useChartTheme();
 
