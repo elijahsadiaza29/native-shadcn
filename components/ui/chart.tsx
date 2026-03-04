@@ -1,12 +1,14 @@
+import { cn } from "@/lib/utils";
+import { useColorScheme } from "nativewind";
 import * as React from "react";
 import {
-  View,
   Text,
-  type ViewStyle,
+  View,
   type LayoutChangeEvent,
+  type ViewStyle,
 } from "react-native";
-import { useColorScheme } from "nativewind";
-import { cn } from "@/lib/utils";
+
+// --- Types ---
 
 export type ChartConfig = {
   [key: string]: {
@@ -35,6 +37,15 @@ export function useChart() {
   return context;
 }
 
+// --- Components ---
+
+/**
+ * ChartContainer – Acts as a responsive wrapper (like Shadcn's ResponsiveContainer).
+ *
+ * It measures its own available width via `onLayout` and automatically injects
+ * that width into any direct gifted-charts child so charts always fit their
+ * parent without overflow. No hardcoded width is needed in individual charts.
+ */
 export function ChartContainer({
   id,
   config,
@@ -56,6 +67,7 @@ export function ChartContainer({
     setContainerWidth(width);
   }, []);
 
+  // Resolve theme colours into the config
   const chartConfig = React.useMemo(() => {
     const resolvedConfig: ChartConfig = {};
     Object.entries(config).forEach(([key, value]) => {
@@ -68,6 +80,9 @@ export function ChartContainer({
     return resolvedConfig;
   }, [config, colorScheme]);
 
+  // Inject responsive props into direct chart children so they auto-fit.
+  // This mirrors how Shadcn's web ChartContainer wraps children in a
+  // ResponsiveContainer – charts always compress to fit, never scroll.
   const responsiveChildren = React.useMemo(() => {
     if (containerWidth === 0) return null;
 
@@ -75,7 +90,35 @@ export function ChartContainer({
       if (!React.isValidElement(child)) return child;
 
       const childProps = child.props as Record<string, any>;
-      const data: any[] | undefined = childProps.data;
+
+      // Guard: skip non-chart children like ChartLegend
+      // ChartLegend has no `children` prop containing Bar/Line/Area markers
+      // and no data prop — it's a pure display component, don't touch it.
+      const isChartLegend = child.type === ChartLegend;
+      if (isChartLegend) return child;
+
+      let data: any[] | undefined = childProps.data;
+      let numSeries = 1;
+
+      // Logic Refactor: Extract data from ALL marker children (Shadcn style)
+      if (childProps.children) {
+        const markerSeries = React.Children.toArray(childProps.children).filter(
+          (c): c is React.ReactElement<MarkerProps> =>
+            React.isValidElement(c) &&
+            (c.type === Area || c.type === Bar || c.type === Line),
+        );
+
+        if (markerSeries.length > 0) {
+          numSeries = markerSeries.length;
+          // Use the longest data set to determine widths/spacing
+          const longestSeries = markerSeries.reduce((prev, curr) =>
+            (curr.props.data?.length ?? 0) > (prev.props.data?.length ?? 0)
+              ? curr
+              : prev,
+          );
+          data = longestSeries.props.data;
+        }
+      }
 
       if (
         !data?.length ||
@@ -85,10 +128,23 @@ export function ChartContainer({
         return child;
       }
 
+      const isBarChart =
+        child.type === BarChart || (childProps.barWidth ?? 0) > 0;
+      const isHorizontal = childProps.horizontal === true;
+
+      // For horizontal bar charts: only inject the container width so BarChart
+      // can use it internally to compute barLength. Do NOT inject spacing/barWidth
+      // overrides — those are computed inside BarChart based on data count.
+      if (isBarChart && isHorizontal) {
+        const yAxisLabelWidth = childProps.yAxisLabelWidth ?? 45;
+        const chartWidth = Math.max(containerWidth - yAxisLabelWidth, 0);
+        return React.cloneElement(child as React.ReactElement<any>, {
+          width: chartWidth,
+        });
+      }
+
       const yAxisLabelWidth = childProps.yAxisLabelWidth ?? 40;
       const chartWidth = Math.max(containerWidth - yAxisLabelWidth, 0);
-      const origBarWidth = childProps.barWidth ?? 0;
-      const isBarChart = origBarWidth > 0;
 
       const overrides: Record<string, any> = {
         width: chartWidth,
@@ -98,15 +154,17 @@ export function ChartContainer({
       };
 
       if (isBarChart) {
-        const slotWidth = chartWidth / data.length;
-        const gap = Math.min(6, Math.max(Math.floor(slotWidth * 0.2), 1));
+        // Vertical bar chart: compute barWidth/spacing from available slot width
+        const totalBars = data.length * numSeries;
+        const slotWidth = chartWidth / totalBars;
+        const gap = Math.min(4, Math.max(Math.floor(slotWidth * 0.1), 1));
         const barWidth = Math.max(Math.floor(slotWidth - gap), 1);
 
         overrides.barWidth = barWidth;
         overrides.spacing = gap;
       } else {
+        // Line / Area chart
         const n = data.length;
-
         const pointRadius = childProps.dataPointsRadius ?? 0;
         const safeWidth = Math.max(chartWidth - pointRadius, 0);
         const spacing = n > 1 ? safeWidth / (n - 0) : 0;
@@ -269,10 +327,343 @@ export function ChartTooltip({
   );
 }
 
+// --- Marker Components ---
+
+type MarkerProps = {
+  data: any[];
+  dataKey: string;
+  color?: string;
+  thickness?: number;
+  hideDataPoints?: boolean;
+  dataPointsColor?: string;
+};
+
+export function Area(_props: MarkerProps) {
+  return null;
+}
+
+export function Bar(_props: { data: any[]; dataKey: string; color?: string }) {
+  return null;
+}
+
+export function Pie(_props: {
+  value: number;
+  dataKey: string;
+  text?: string;
+  shiftTextX?: number;
+  shiftTextY?: number;
+}) {
+  return null;
+}
+
+export function Line(_props: MarkerProps) {
+  return null;
+}
+
+// --- Wrapped Chart Components ---
+
+import {
+  BarChart as GiftedBarChart,
+  LineChart as GiftedLineChart,
+  PieChart as GiftedPieChart,
+} from "react-native-gifted-charts";
+
+export function AreaChart({
+  children,
+  curved = false,
+  ...props
+}: {
+  children: React.ReactNode;
+  curved?: boolean;
+} & any) {
+  const { config } = useChart();
+  const theme = useChartTheme();
+  const series = React.Children.toArray(children).filter(
+    (child): child is React.ReactElement<MarkerProps> =>
+      React.isValidElement(child) && child.type === Area,
+  );
+
+  const dataSet = series.map((s) => {
+    const { dataKey, data, thickness, hideDataPoints, dataPointsColor } =
+      s.props;
+    const color = config[dataKey]?.color || "#000";
+    return {
+      data,
+      color,
+      thickness: thickness ?? 2,
+      hideDataPoints: hideDataPoints ?? false,
+      dataPointsColor: dataPointsColor ?? color,
+      startFillColor: color,
+      endFillColor: color,
+      startOpacity: 0.4,
+      endOpacity: 0.1,
+    };
+  });
+
+  const defaultProps: any = {
+    yAxisThickness: 0,
+    xAxisThickness: 0,
+    rulesColor: theme.border,
+    rulesType: "solid",
+    yAxisTextStyle: { color: theme.mutedForeground, fontSize: 11 },
+    xAxisLabelTextStyle: { color: theme.mutedForeground, fontSize: 11 },
+  };
+
+  return (
+    <GiftedLineChart
+      areaChart
+      curved={curved}
+      dataSet={dataSet}
+      {...defaultProps}
+      {...props}
+    />
+  );
+}
+
+export function BarChart({
+  children,
+  horizontal = false,
+  ...props
+}: {
+  children: React.ReactNode;
+  horizontal?: boolean;
+} & any) {
+  const { config } = useChart();
+  const theme = useChartTheme();
+  const series = React.Children.toArray(children).filter(
+    (child): child is React.ReactElement<MarkerProps> =>
+      React.isValidElement(child) && child.type === Bar,
+  );
+
+  if (series.length === 0) return null;
+
+  // Interleave data for grouped bars
+  const data: any[] = [];
+  const numItems = Math.max(...series.map((s) => s.props.data.length)); // number of category groups (e.g. Website, Social)
+  const numSeries = series.length; // number of series (e.g. Desktop, Mobile, Tablet)
+  let maxDataValue = 0;
+
+  for (let i = 0; i < numItems; i++) {
+    series.forEach((s, seriesIndex) => {
+      const { dataKey, data: seriesData } = s.props;
+      const color = config[dataKey]?.color || "#000";
+      const item = seriesData[i];
+      if (item) {
+        if (item.value > maxDataValue) {
+          maxDataValue = item.value;
+        }
+        data.push({
+          ...item,
+          // Only show the label for the first bar in each group
+          // so it appears centered under the group rather than repeated.
+          label: seriesIndex === 0 ? item.label : undefined,
+          frontColor: color,
+        });
+      }
+    });
+  }
+
+  // Add a 10% padding to the max value so the longest bar has some breathing room
+  const dynamicMaxValue = maxDataValue > 0 ? maxDataValue * 1.1 : undefined;
+
+  const defaultProps: any = {
+    barBorderRadius: 4,
+    yAxisThickness: 0,
+    xAxisThickness: 0,
+    rulesColor: theme.border,
+    rulesType: "solid",
+    yAxisTextStyle: { color: theme.mutedForeground, fontSize: 11 },
+    xAxisLabelTextStyle: { color: theme.mutedForeground, fontSize: 11 },
+  };
+
+  if (horizontal) {
+    defaultProps.hideRules = true;
+    defaultProps.hideYAxisText = true;
+    defaultProps.yAxisLabelWidth = 45;
+    defaultProps.shiftX = -12;
+    defaultProps.shiftY = -12;
+
+    let finalPointerConfig = props.pointerConfig;
+    if (finalPointerConfig && finalPointerConfig.pointerLabelComponent) {
+      const OriginalLabelComponent = finalPointerConfig.pointerLabelComponent;
+      finalPointerConfig = {
+        ...finalPointerConfig,
+        shiftPointerLabelX: props.pointerConfig.shiftPointerLabelX ?? -40,
+        pointerLabelComponent: (items: any) => (
+          <View style={{ transform: [{ rotate: "270deg" }], marginLeft: 86 }}>
+            {typeof OriginalLabelComponent === "function" ? (
+              OriginalLabelComponent(items)
+            ) : (
+              <OriginalLabelComponent {...items} />
+            )}
+          </View>
+        ),
+      };
+    }
+
+    // ─── Responsive sizing ───────────────────────────────────────────────────
+    //
+    // In gifted-charts horizontal mode the axes are swapped:
+    //   `width`  → controls how long the bars are  (the horizontal axis)
+    //   `height` → controls how tall the chart is  (the vertical axis)
+    //
+    // `props.width` is injected by ChartContainer and equals the available
+    // container width minus the yAxisLabelWidth.  We use it directly as
+    // barLength so bars always fill the card.
+    //
+    // For height we compute it from the number of bars so the chart scales
+    // vertically with the data set size.
+    // ────────────────────────────────────────────────────────────────────────
+    // barLength = how long each bar can be (fills the container)
+    const availableWidth = props.width ?? 300;
+    const barLength = Math.max(0, availableWidth - 20);
+
+    const totalBars = data.length;
+
+    // Fixed comfortable sizes — height is always derived from data count,
+    // never from a hardcoded container height, so it grows with more rows.
+    const BAR_HEIGHT = props.barHeight ?? 14;
+    const BAR_SPACING = props.spacing ?? 4;
+    const GROUP_GAP = 10; // extra breathing room between category groups
+
+    const finalBarHeight = BAR_HEIGHT;
+    const finalSpacing = BAR_SPACING;
+
+    // Total height = all bars + gaps between bars + extra group gaps + bottom axis room
+    const barsHeight = totalBars * finalBarHeight;
+    const spacingHeight = (totalBars - 1) * finalSpacing;
+    const groupGapsHeight = (numItems - 1) * GROUP_GAP;
+    const bottomPadding = 48 + totalBars * finalBarHeight;
+
+    const verticalSpan =
+      barsHeight + spacingHeight + groupGapsHeight + bottomPadding;
+
+    return (
+      <View
+        style={{ width: "100%", height: verticalSpan, overflow: "visible" }}
+      >
+        <GiftedBarChart
+          data={data}
+          horizontal
+          maxValue={props.maxValue ?? dynamicMaxValue}
+          {...defaultProps}
+          {...props}
+          barHeight={finalBarHeight}
+          spacing={finalSpacing}
+          width={barLength}
+          height={verticalSpan}
+          pointerConfig={finalPointerConfig}
+        />
+      </View>
+    );
+  }
+
+  // ── Vertical bar chart (unchanged) ──────────────────────────────────────
+  return (
+    <GiftedBarChart
+      data={data}
+      horizontal={horizontal}
+      maxValue={props.maxValue ?? dynamicMaxValue}
+      {...defaultProps}
+      {...props}
+    />
+  );
+}
+
+export function LineChart({
+  children,
+  curved = false,
+  ...props
+}: {
+  children: React.ReactNode;
+  curved?: boolean;
+} & any) {
+  const { config } = useChart();
+  const theme = useChartTheme();
+  const series = React.Children.toArray(children).filter(
+    (child): child is React.ReactElement<MarkerProps> =>
+      React.isValidElement(child) && child.type === Line,
+  );
+
+  const dataSet = series.map((s) => {
+    const { dataKey, data, thickness, hideDataPoints, dataPointsColor } =
+      s.props;
+    const color = config[dataKey]?.color || "#000";
+    return {
+      data,
+      color,
+      thickness: thickness ?? 2,
+      hideDataPoints: hideDataPoints ?? false,
+      dataPointsColor: dataPointsColor ?? color,
+    };
+  });
+
+  const defaultProps: any = {
+    yAxisThickness: 0,
+    xAxisThickness: 0,
+    rulesColor: theme.border,
+    rulesType: "solid",
+    yAxisTextStyle: { color: theme.mutedForeground, fontSize: 11 },
+    xAxisLabelTextStyle: { color: theme.mutedForeground, fontSize: 11 },
+  };
+
+  return (
+    <GiftedLineChart
+      curved={curved}
+      dataSet={dataSet}
+      {...defaultProps}
+      {...props}
+    />
+  );
+}
+
+export function PieChart({
+  children,
+  ...props
+}: { children: React.ReactNode } & any) {
+  const { config } = useChart();
+  const theme = useChartTheme();
+
+  const slices = React.Children.toArray(children).filter(
+    (
+      child,
+    ): child is React.ReactElement<{
+      value: number;
+      dataKey: string;
+      text?: string;
+    }> => React.isValidElement(child) && child.type === Pie,
+  );
+
+  const data = slices.map((s) => {
+    const { value, dataKey, text, ...rest } = s.props;
+    const color = config[dataKey]?.color || "#000";
+    return {
+      value,
+      color,
+      text: text ?? config[dataKey]?.label,
+      ...rest,
+    };
+  });
+
+  return (
+    <GiftedPieChart
+      data={data}
+      innerCircleColor={theme.background}
+      {...props}
+    />
+  );
+}
+
+// --- Utilities ---
+
 export function getChartColor(key: string, config: ChartConfig): string {
   return config[key]?.color || "#000";
 }
 
+/**
+ * Returns a ready-to-use `pointerConfig` with safe tooltip defaults.
+ * Spread overrides on top to customize individual charts.
+ */
 export function useChartPointerConfig(overrides?: Record<string, any>) {
   const theme = useChartTheme();
 
