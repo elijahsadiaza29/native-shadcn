@@ -4,7 +4,15 @@ A high-fidelity charting system for React Native, inspired by Shadcn UI and buil
 
 ## Installation
 
-This component requires the foundation specified in the [Installation Guide](./installation.md).
+You can install this component via our CLI:
+
+```bash
+npx github:elijahsadiaza29/native-shadcn add chart
+```
+
+### Manual Installation
+
+If you prefer to install it manually, this component requires the foundation specified in the [Installation Guide](./installation.md).
 
 ```bash
 npx expo install react-native-gifted-charts gifted-charts-core

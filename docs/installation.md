@@ -1,4 +1,4 @@
-# Global Installation Guide 
+# Global Installation Guide
 
 Before using these components, you need to set up your Expo project with the necessary dependencies and design tokens.
 
@@ -84,7 +84,15 @@ Add these to your `global.css`. These colors are calibrated to match the officia
 
 ## 3. Install Dependencies
 
-Install the core native packages required by the entire library:
+You can install all necessary base dependencies via our CLI:
+
+```bash
+npx github:elijahsadiaza29/native-shadcn init
+```
+
+### Manual Installation
+
+If you prefer to install dependencies manually:
 
 ```bash
 npx expo install react-native-svg expo-linear-gradient lucide-react-native react-native-reanimated react-native-gesture-handler @rn-primitives/slot @rn-primitives/portal

@@ -4,7 +4,15 @@ A robust, accessible Drawer (Bottom Sheet) component for React Native, inspired 
 
 ## Installation
 
-This component requires the foundation specified in the [Installation Guide](./installation.md).
+You can install this component via our CLI:
+
+```bash
+npx github:elijahsadiaza29/native-shadcn add drawer
+```
+
+### Manual Installation
+
+If you prefer to install it manually, this component requires the foundation specified in the [Installation Guide](./installation.md).
 
 ```bash
 npx expo install @gorhom/bottom-sheet react-native-reanimated react-native-gesture-handler @rn-primitives/slot @rn-primitives/portal

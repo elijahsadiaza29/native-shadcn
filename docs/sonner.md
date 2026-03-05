@@ -4,7 +4,15 @@ A beautiful, responsive toast notification system for React Native, inspired by 
 
 ## Installation
 
-This component requires the foundation specified in the [Installation Guide](./installation.md).
+You can install this component via our CLI:
+
+```bash
+npx github:elijahsadiaza29/native-shadcn add sonner
+```
+
+### Manual Installation
+
+If you prefer to install it manually, this component requires the foundation specified in the [Installation Guide](./installation.md).
 
 ```bash
 npx expo install sonner-native lucide-react-native
