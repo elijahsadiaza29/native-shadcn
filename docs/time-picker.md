@@ -77,4 +77,4 @@ export default function MyTimePickerForm() {
 - **Fluid Animations**: Provides buttery-smooth transitions and gestures powered by `react-native-reanimated`.
 - **Accessibility & Theming**: Responds directly to your app's dark or light mode via `nativewind`.
 - **Gestures**: Swipe-to-select numbers natively supported by `PanResponder` and math-calculated angles for the selector.
-- **Pre-configured Variants**: Includes `TimePickerDial` and `TimePickerInput` exports if you want to explicitly enforce a starting mode.
+- **Pre-configured Variants**: Includes `TimePickerDial` and `TimePickerInput` exports if you want to explicitly enforce a starting mode..
