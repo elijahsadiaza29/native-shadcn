@@ -29,6 +29,15 @@ const components = [
     ],
     source: "components/ui/drawer.tsx",
   },
+  {
+    name: "time-picker",
+    dependencies: [
+      "lucide-react-native",
+      "react-native-reanimated",
+      "react-native-svg",
+    ],
+    source: "components/ui/time-picker.tsx",
+  },
 ];
 
 function buildRegistry() {
